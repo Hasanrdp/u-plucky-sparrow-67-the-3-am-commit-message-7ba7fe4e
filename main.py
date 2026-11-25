@@ -29,7 +29,7 @@ EXPECTED_BYTES = 122
 EXPECTED_SHA256 = "0d6d8fe8908c016f3f70565a6ba755cf1332ab54724da7eb433ea23b7563a536"
 
 
-def build_output():
+def prepare_output():
     """Return the exact bytes to write, after checking them in memory."""
     data = (ENTRY_TEXT + "\n").encode("utf-8")
     if len(data) != EXPECTED_BYTES:
@@ -39,8 +39,6 @@ def build_output():
     digest = hashlib.sha256(data).hexdigest()
     if digest != EXPECTED_SHA256:
         raise SystemExit(f"sha256 mismatch: got {digest}")
-    if len(ENTRY_TEXT) > 200 or not ENTRY_TEXT.strip():
-        raise SystemExit("entry text fails the 1-200 character gate")
     return data
 
 
@@ -57,18 +55,21 @@ def verify(path, data):
         raise SystemExit(
             f"read-back byte count mismatch in {path}: {len(written)}"
         )
+    text = written.decode("utf-8").rstrip("\n")
+    if not 1 <= len(text) <= 200 or not text.strip():
+        raise SystemExit(f"entry text fails the 1-200 character gate: {len(text)} chars")
     return written
 
 
 def main():
-    data = build_output()
+    data = prepare_output()
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "entry.txt")
     with open(path, "wb") as handle:
         handle.write(data)
-    verify(path, data)
-    print(f"wrote {path} ({len(data)} bytes, sha256 {EXPECTED_SHA256[:12]}...)")
+    verified = verify(path, data)
+    print(f"wrote {path} ({len(verified)} bytes, sha256 {EXPECTED_SHA256[:12]}...)")
     return 0
 
 
